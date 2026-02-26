@@ -1,20 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearch } from "../context/SearchContext";
 import { useTeam } from "../context/TeamContext";
 import { useLocation, useNavigate } from "react-router-dom";
 
 function Search() {
-  const { addPlayer } = useTeam(); // For Add to Team
+  const { addPlayer } = useTeam();
   const { query, setQuery, results, loading, searchPlayers } = useSearch();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [stats, setStats] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(6);
-  const navigate = useNavigate();
+  const [positionFilter, setPositionFilter] = useState("ALL");
 
-  // Auto-read query from URL and fetch
+  // Read query from URL
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const searchQuery = params.get("q");
@@ -24,7 +25,16 @@ function Search() {
     }
   }, [location.search, setQuery, searchPlayers]);
 
-  // Search form submit
+  // Filter results by position
+  const filteredResults = useMemo(() => {
+    if (positionFilter === "ALL") return results;
+
+    return results.filter(
+      (player) =>
+        player.primaryPosition?.abbreviation === positionFilter
+    );
+  }, [results, positionFilter]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!query.trim()) return;
@@ -32,7 +42,6 @@ function Search() {
     setVisibleCount(6);
   };
 
-  // Open modal + fetch stats
   const openModal = async (player) => {
     setSelectedPlayer(player);
     setStats(null);
@@ -40,7 +49,7 @@ function Search() {
 
     try {
       const res = await fetch(
-        `https://statsapi.mlb.com/api/v1/people/${player.id}/stats?stats=career&group=hitting,pitching`,
+        `https://statsapi.mlb.com/api/v1/people/${player.id}/stats?stats=career&group=hitting,pitching`
       );
       const data = await res.json();
       setStats(data.stats || []);
@@ -56,7 +65,6 @@ function Search() {
     setStats(null);
   };
 
-  // Render stats in modal
   const renderStats = () => {
     if (!stats || stats.length === 0) {
       return <p>No stats available.</p>;
@@ -104,6 +112,7 @@ function Search() {
     <section>
       <h1>MLB Player Search</h1>
 
+      {/* Search Form */}
       <form onSubmit={handleSubmit}>
         <input
           value={query}
@@ -113,6 +122,35 @@ function Search() {
         <button type="submit">Search</button>
       </form>
 
+      {/* Position Filter */}
+      {results.length > 0 && (
+        <div className="position-filter" >
+          <label >
+              Filter by Position:
+          </label>
+          <select className="select"
+            value={positionFilter}
+            onChange={(e) => {
+              setPositionFilter(e.target.value);
+              setVisibleCount(6);
+            }}
+          >
+            <option value="ALL">All</option>
+            <option value="P">Pitcher (P)</option>
+            <option value="C">Catcher (C)</option>
+            <option value="1B">First Base (1B)</option>
+            <option value="2B">Second Base (2B)</option>
+            <option value="3B">Third Base (3B)</option>
+            <option value="SS">Shortstop (SS)</option>
+            <option value="LF">Left Field (LF)</option>
+            <option value="CF">Center Field (CF)</option>
+            <option value="RF">Right Field (RF)</option>
+            <option value="DH">Designated Hitter (DH)</option>
+          </select>
+        </div>
+      )}
+
+      {/* Loading Skeleton */}
       {loading && (
         <div className="results">
           {[...Array(6)].map((_, index) => (
@@ -125,22 +163,24 @@ function Search() {
         </div>
       )}
 
-      {!loading && results.length === 0 && query && (
+      {/* No Results */}
+      {!loading && filteredResults.length === 0 && query && (
         <h2 style={{ marginTop: "20px", color: "red" }}>
-          No results found for "
+          No results found.
+        </h2>
+      )}
+
+      {/* Results Header */}
+      {filteredResults.length > 0 && (
+        <h2 style={{ marginTop: "20px" }}>
+          Showing {filteredResults.length} results for "
           <span style={{ color: "#007bff" }}>{query}</span>"
         </h2>
       )}
 
-      {results.length > 0 && (
-        <h2 style={{ marginTop: "20px" }}>
-          Showing results for "<span style={{ color: "#007bff" }}>{query}</span>
-          "
-        </h2>
-      )}
-
+      {/* Results Grid */}
       <div className="results">
-        {results.slice(0, visibleCount).map((player) => (
+        {filteredResults.slice(0, visibleCount).map((player) => (
           <div
             key={player.id}
             className="card"
@@ -157,13 +197,16 @@ function Search() {
             <div className="card__overlay">
               <h3>{player.fullName}</h3>
               <p>{player.currentTeam?.name || "Free Agent"}</p>
-              <p>{player.primaryPosition?.abbreviation || "N/A"}</p>
+              <p>
+                {player.primaryPosition?.abbreviation || "N/A"}
+              </p>
             </div>
           </div>
         ))}
       </div>
 
-      {visibleCount < results.length && (
+      {/* Load More */}
+      {visibleCount < filteredResults.length && (
         <div style={{ textAlign: "center", marginTop: "20px" }}>
           <button
             onClick={() => setVisibleCount((prev) => prev + 6)}
@@ -184,7 +227,10 @@ function Search() {
             }}
           >
             <div className="modal-blur-layer" />
-            <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="modal-card"
+              onClick={(e) => e.stopPropagation()}
+            >
               <button className="close-btn" onClick={closeModal}>
                 ✕
               </button>
@@ -194,14 +240,10 @@ function Search() {
                   src={`https://img.mlbstatic.com/mlb-photos/image/upload/w_300,q_auto:best/v1/people/${selectedPlayer.id}/headshot/67/current`}
                   alt={selectedPlayer.fullName}
                   className="modal-player-img"
-                  onError={(e) => {
-                    e.currentTarget.src = "/assets/default-player.png";
-                  }}
                 />
                 <h2>{selectedPlayer.fullName}</h2>
               </div>
 
-              {/* Add to Team button */}
               <button
                 className="add-team-btn"
                 onClick={() => {

@@ -153,6 +153,24 @@ a {
   z-index: 1;
 }
 
+.position-filter {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+.select {
+  max-width: 300px;
+  text-align: center;
+  margin: 0 auto;
+}
+
+label {
+  margin-bottom: 10px;
+}
+
 /*////////////////// SEARCH RESULTS ////////////////////*/
 
 .results {
