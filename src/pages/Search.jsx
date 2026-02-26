@@ -5,8 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 function Search() {
   const { addPlayer } = useTeam(); // For Add to Team
-  const { query, setQuery, results, setResults, loading, searchPlayers } =
-    useSearch();
+  const { query, setQuery, results, loading, searchPlayers } = useSearch();
   const location = useLocation();
 
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -115,16 +114,16 @@ function Search() {
       </form>
 
       {loading && (
-  <div className="results">
-    {[...Array(6)].map((_, index) => (
-      <div key={index} className="card skeleton-card">
-        <div className="skeleton-img" />
-        <div className="skeleton-text" />
-        <div className="skeleton-text short" />
-      </div>
-    ))}
-  </div>
-)}
+        <div className="results">
+          {[...Array(6)].map((_, index) => (
+            <div key={index} className="card skeleton-card">
+              <div className="skeleton-img" />
+              <div className="skeleton-text" />
+              <div className="skeleton-text short" />
+            </div>
+          ))}
+        </div>
+      )}
 
       {!loading && results.length === 0 && query && (
         <h2 style={{ marginTop: "20px", color: "red" }}>
